@@ -1,0 +1,32 @@
+#------------------------------------------------------#
+#              JSRecon12 parameters                    #
+#                  19-Sep-2017                         #
+#------------------------------------------------------#
+
+outimagesize  :=     336
+
+zoom           :=   2
+
+postfiltertype  :=   GAUSS
+postfilterxy    :=     5
+postfilterz     :=     5
+
+NONawiter       :=       6
+NONawsubsets    :=       16
+NONopiter       :=       6
+NONopsubsets    :=       16
+NONpsfiter      :=       6
+NONpsfsubsets   :=       16
+
+
+TOFawiter       :=       6
+TOFawsubsets    :=       16
+TOFopiter       :=       6
+TOFopsubsets    :=       16
+TOFpsfiter      :=       6
+TOFpsfsubsets   :=       16
+
+# if duration = 1200
+LMFrames        := all
+
+matchctslice    :=       1
