@@ -7,7 +7,7 @@ from postutils import _MidPointNorm, lr_model
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from mpl_toolkits.axes_grid1 import ImageGrid
 from matplotlib.gridspec import GridSpec
-plt.style.use('/homes/raphael/Postprocessing/notebooks/plots.mplstyle')
+plt.style.use('/homes/raphael/brainPETNR/notebooks/postprocess/plots.mplstyle')
 
 # sns.set_theme(style="white")
 

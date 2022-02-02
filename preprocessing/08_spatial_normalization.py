@@ -221,7 +221,7 @@ if __name__ == '__main__':
 
     # input folder
     parser = argparse.ArgumentParser(
-        description='Convert all dcm files to Nifti in given directory')
+        description='Convert dicom files to Nifti and makes registration to MNI space.')
     parser.add_argument("-i", "--input-dir",
                         help="Directory containing patients data. Will use current working directory if nothing passed",
                         type=str, default=os.getcwd())
