@@ -5,8 +5,10 @@ Code referenced in Raphael S. Daveau, *et al.* *Deep learning based low-activity
 Code in **postprocessing** was used for:
 - image inference
 - image similarity metrics computation
-- segmentations of ROIs
 - clinical metrics computation
+
+Code in **segmentation** was used for:
+- segmentations of ROIs (used for clinical metrics)
 
 # Model
 
