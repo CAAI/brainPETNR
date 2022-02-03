@@ -19,7 +19,7 @@ import compute_quantities
 
 def process(data_id):
 
-    wf = Workflow(name='PETCTPIB',
+    wf = Workflow(name='PETCTPIB_segmentation',
                   base_dir=os.path.join(DATA_DIR, data_id))
 
     datasource = Node(interface=DataGrabber(infields=['data_id'],
@@ -29,7 +29,7 @@ def process(data_id):
     datasource.inputs.base_directory = DATA_DIR
     datasource.inputs.data_id = data_id
     datasource.inputs.template_args = dict(struct=[["data_id", 'CT']],
-                                           func=[["data_id", 'PET']])
+                                           func=[["data_id", 'PET_5mm']])
     datasource.inputs.sort_filelist = True
 
     convert_func = Node(interface=Dcm2niix(),
