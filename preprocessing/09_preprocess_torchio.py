@@ -114,7 +114,7 @@ def main():
         patient_out_dir.mkdir(parents=True, exist_ok=True)
 
         # copy PET or MR file to dst folder
-        pet_file = folder.joinpath("pet_to_avg_bet", "pet_to_avg.nii.gz")
+        pet_file = folder.joinpath("pet_to_avg_bet", "pet_to_avg_bet.nii.gz")
         pet_base_filename = folder.name + "_MNI_BET"
         copy_and_preprocess_file(pet_file, pet_base_filename, patient_out_dir,
                                  final_shape, normalize, crop)

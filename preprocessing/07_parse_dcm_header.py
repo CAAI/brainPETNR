@@ -30,6 +30,8 @@ def main():
     for patient_folder in tqdm(patient_folders):
         patient = patient_folder.name
         pet_folder = patient_folder.joinpath('PET_5mm')
+        if not pet_folder.exists():
+            continue
         dcm_files = [
             f for f in pet_folder.iterdir()
             if '.dcm' in f.name or '.ima' in f.name
@@ -61,6 +63,8 @@ def main():
     activity = {'CT': 1.0, 'MR': 1.0}
     for name in pet_files:
         if name in scaling:
+            continue
+        if 'segmentation' in name:
             continue
         if 'sec' in name:
             # name template is PET_LD{frame_duration}sec{delay}delay
