@@ -158,21 +158,21 @@ class JobProcess:
                          (ct_bet, self.mask_to_avg, [("mask_file", "in_file")])
                          ])
 
-        # new add on to get aff transform matrix and inverse
-        self.aff_transf = Node(interface=fsl.ConvertXFM(), name="aff_transf")
-        self.aff_transf.inputs.concat_xfm = True
-        self.aff_transf.inputs.out_file = "aff_pet_to_avg.txt"
-        self.wf.connect([(self.ct_to_avg, self.aff_transf, [("out_matrix_file",
-                                                             "in_file")]),
-                         (self.pet_to_ct, self.aff_transf, [("out_matrix_file",
-                                                             "in_file2")])])
+        # # new add on to get aff transform matrix and inverse
+        # self.aff_transf = Node(interface=fsl.ConvertXFM(), name="aff_transf")
+        # self.aff_transf.inputs.concat_xfm = True
+        # self.aff_transf.inputs.out_file = "aff_pet_to_avg.txt"
+        # self.wf.connect([(self.pet_to_ct, self.aff_transf, [("out_matrix_file",
+        #                                                      "in_file")]),
+        #                  (self.ct_to_avg, self.aff_transf, [("out_matrix_file",
+        #                                                      "in_file2")])])
 
-        self.inv_aff_transf = Node(interface=fsl.ConvertXFM(),
-                                   name="inv_aff_transf")
-        self.inv_aff_transf.inputs.invert_xfm = True
-        self.inv_aff_transf.inputs.out_file = "inv_aff_pet_to_avg.txt"
-        self.wf.connect([(self.aff_transf, self.inv_aff_transf,
-                          [("out_file", "in_file")])])
+        # self.inv_aff_transf = Node(interface=fsl.ConvertXFM(),
+        #                            name="inv_aff_transf")
+        # self.inv_aff_transf.inputs.invert_xfm = True
+        # self.inv_aff_transf.inputs.out_file = "inv_aff_pet_to_avg.txt"
+        # self.wf.connect([(self.aff_transf, self.inv_aff_transf,
+        #                   [("out_file", "in_file")])])
 
 
 if __name__ == '__main__':
@@ -181,25 +181,20 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description=
         'Convert dicom files to Nifti and makes registration to MNI space.')
-    parser.add_argument(
-        "-i",
-        "--input-dir",
-        help=
-        "Directory containing patients data. Will use current working directory if nothing passed",
-        type=str,
-        default=os.getcwd())
-    parser.add_argument(
-        "-o",
-        "--output-dir",
-        help=
-        "Target directory for the output data. Will be 'data_registered' if nothing passed",
-        type=str,
-        default='data_registered')
+    parser.add_argument("-i",
+                        "--input-dir",
+                        help="Directory containing patients data. Default cwd",
+                        type=str,
+                        default=os.getcwd())
+    parser.add_argument("-o",
+                        "--output-dir",
+                        help="Output dir. Default 'data_registered'",
+                        type=str,
+                        default='data_registered')
     parser.add_argument(
         "-k",
         "--key",
-        help=
-        "PET file name in patient folder - useful for specific PET type. Default is all.",
+        help="Specific PET file name to process. Default is all.",
         type=str,
         default='')
     args = parser.parse_args()
