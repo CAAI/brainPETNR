@@ -83,7 +83,7 @@ def main():
     sys.path.insert(1, str(project_dir))
     import data_generator
     data_gen = getattr(data_generator, configs['data_generator'])
-    data_module = data_gen(configs, args.test)
+    data_module = data_gen(configs)
     test_subjects = data_module.prepare_patient_data(infer_mode)
     test_set = tio.SubjectsDataset(test_subjects)
 
