@@ -47,29 +47,33 @@ def copy_and_preprocess_file(file,
 def main():
     parser = argparse.ArgumentParser(
         description=
-        'Resample all nifty files in a given directory based on target pixel size.'
-    )
-    parser.add_argument(
-        "-i",
-        "--input-dir",
-        help=
-        "Directory containing patients data. Will use current working directory if nothing passed",
-        type=str,
-        default=os.getcwd())
-    parser.add_argument(
-        "-o",
-        "--output",
-        help=
-        "Output directory for recon data. Default is 'data_for_training' if nothing passed.",
-        type=str,
-        default='data_for_training')
-    parser.add_argument(
-        "-c",
-        "--config",
-        help=
-        "Config file else than 'config.yaml' in project directory (input dir)",
-        type=str,
-        default=Path(os.getcwd()).parent.joinpath('config.yaml'))
+        'Prepare nifty files for training given info in config file.')
+    parser.add_argument("-i",
+                        "--input-dir",
+                        help="Data directory. Default: cwd.",
+                        type=str,
+                        default=os.getcwd())
+    parser.add_argument("-o",
+                        "--output",
+                        help="Output directory. Default: 'data_for_training'.",
+                        type=str,
+                        default='data_for_training')
+    parser.add_argument("-c",
+                        "--config",
+                        help="Config file containing preprocessing steps.",
+                        type=str,
+                        default=Path(
+                            os.getcwd()).parent.joinpath('config.yaml'))
+    parser.add_argument("-bet",
+                        "--brain-extraction",
+                        help="Use the skull-stripped image.",
+                        action="store_true",
+                        default=False)
+    parser.add_argument("-fr",
+                        "--full-registration",
+                        help="Use MNI registered image.",
+                        action="store_true",
+                        default=False)
     args = parser.parse_args()
 
     data_dir = Path(args.input_dir)
@@ -95,38 +99,56 @@ def main():
         z_dim = config['data_shape'][2] - np.sum(crop_config['z_lim'])
         final_shape = f"{x_dim}x{y_dim}x{z_dim}"
 
+    # for using the right files and namings
+    tag = ''
+    if args.full_registration:
+        base_name = '_to_avg'
+        tag += '_MNI'
+        if args.brain_extraction:
+            base_name += '_bet'
+            tag += '_BET'
+    else:
+        base_name = '_resampled'
+
     # printing preprocessing steps
     print(f"""
         NORMALIZATION:
-        PET -> divided by {config['pet_normalization_constant']}
-        MR -> divided by {config['mr_normalization_constant']}
-        CT -> "soft tissue normalization": values between (-50, 50) kept and divided by 50
+            PET -> divided by {config['pet_normalization_constant']}
+            MR -> divided by {config['mr_normalization_constant']}
+            CT -> "soft tissue normalization": values between (-50, 50) kept and divided by 50
         
         CROPPING:
-        original shape: {config['data_shape'][0]} x {config['data_shape'][1]} x {config['data_shape'][2]}
-           final shape: {x_dim} x {y_dim} x {z_dim}
+            original shape: {config['data_shape'][0]} x {config['data_shape'][1]} x {config['data_shape'][2]}
+               final shape: {x_dim} x {y_dim} x {z_dim}
+           
+        NAMING:
+                input file: pet{base_name}.nii.gz
+               output file: PET{tag}_{final_shape}_NORM.nii.gz
+        
     """)
 
     pet_folders = [d for d in data_dir.glob("*/*") if d.is_dir()]
     for folder in tqdm(pet_folders):
+        if folder.name != 'PET_5mm':
+            continue
         patient_id = folder.parent.name
         patient_out_dir = output_dir.joinpath(patient_id)
         patient_out_dir.mkdir(parents=True, exist_ok=True)
 
         # copy PET or MR file to dst folder
-        pet_file = folder.joinpath("pet_to_avg_bet", "pet_to_avg_bet.nii.gz")
-        pet_base_filename = folder.name + "_MNI_BET"
+        pet_file = folder.joinpath(f"pet{base_name}", f"pet{base_name}.nii.gz")
+        pet_base_filename = folder.name + tag
         copy_and_preprocess_file(pet_file, pet_base_filename, patient_out_dir,
                                  final_shape, normalize, crop)
 
-        mr_file = folder.joinpath("mr_to_avg", "mr_to_avg.nii.gz")
-        mr_base_filename = folder.name + "_MNI_BET"
+        mr_file = folder.joinpath(f"mr{base_name}", f"mr{base_name}.nii.gz")
+        mr_base_filename = folder.name + tag
         copy_and_preprocess_file(mr_file, mr_base_filename, patient_out_dir,
                                  final_shape, normalize_mr, crop)
 
         # copy CT file to dst folder
-        ct_file = folder.joinpath('ct_to_avg', 'ct_to_avg.nii.gz')
-        ct_base_filename = "CT_MNI_BET.nii.gz"
+        ct_file = folder.joinpath(f'ct{base_name}', f'ct{base_name}.nii.gz')
+        ct_base_filename = 'CT' + tag
         copy_and_preprocess_file(ct_file, ct_base_filename, patient_out_dir,
                                  final_shape, normalize_ct, crop)
 
