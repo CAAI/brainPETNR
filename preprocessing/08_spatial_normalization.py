@@ -4,6 +4,7 @@ from pathlib import Path
 import argparse
 import pandas as pd
 from nipype.interfaces import fsl
+from nipype.interfaces.niftyreg import RegTools
 from nipype.interfaces.dcm2nii import Dcm2niix
 from nipype import Node, Workflow, DataGrabber
 import multiprocessing as mp
@@ -23,20 +24,31 @@ class JobProcess:
 
     """
 
-    def __init__(self, data_id, file_in, scaling_factor, out_dir):
+    def __init__(self,
+                 data_id,
+                 file_in,
+                 scaling_factor,
+                 out_dir,
+                 bet_mni=False):
         self.data_id = data_id
         self.scaling_factor = scaling_factor
         self.out_dir = out_dir.joinpath(data_id)
         self.data_dir = file_in.parent.parent
         self.template = self.data_dir.parent.joinpath('etc').joinpath(
             "avg_template.nii.gz")
+        self.unit_transf = self.data_dir.parent.joinpath('etc').joinpath(
+            "unity_transform.txt")
         self.pet_name = file_in.name
         self.key = 'mr' if 'MR' in self.pet_name else 'pet'
         self.wf = Workflow(name=self.pet_name, base_dir=self.out_dir)
 
-        self._preliminary_setup()
+        self.preliminary_setup()
+        if bet_mni:
+            self.to_mni()
+        else:
+            self.resample()
 
-    def _preliminary_setup(self):
+    def preliminary_setup(self):
         """
         Creates and connects nodes later stages of processing will depend on, .e.g,
         specifies folders containing CT resp. PET images, and converts DICOM
@@ -76,6 +88,7 @@ class JobProcess:
         self.wf.connect([(self.convert_func, self.rescale_func,
                           [("converted_files", "in_file")])])
 
+    def to_mni(self):
         self.pet_to_ct = Node(interface=fsl.FLIRT(), name=f'{self.key}_to_ct')
         self.pet_to_ct.inputs.cost_func = "corratio"
         self.pet_to_ct.inputs.cost = "corratio"
@@ -158,21 +171,33 @@ class JobProcess:
                          (ct_bet, self.mask_to_avg, [("mask_file", "in_file")])
                          ])
 
-        # # new add on to get aff transform matrix and inverse
-        # self.aff_transf = Node(interface=fsl.ConvertXFM(), name="aff_transf")
-        # self.aff_transf.inputs.concat_xfm = True
-        # self.aff_transf.inputs.out_file = "aff_pet_to_avg.txt"
-        # self.wf.connect([(self.pet_to_ct, self.aff_transf, [("out_matrix_file",
-        #                                                      "in_file")]),
-        #                  (self.ct_to_avg, self.aff_transf, [("out_matrix_file",
-        #                                                      "in_file2")])])
+    def resample(self):
 
-        # self.inv_aff_transf = Node(interface=fsl.ConvertXFM(),
-        #                            name="inv_aff_transf")
-        # self.inv_aff_transf.inputs.invert_xfm = True
-        # self.inv_aff_transf.inputs.out_file = "inv_aff_pet_to_avg.txt"
-        # self.wf.connect([(self.aff_transf, self.inv_aff_transf,
+        # self.pet_resampled = Node(interface=fsl.FLIRT(),
+        #                           name=f"{self.key}_resampled")
+        # self.pet_resampled.inputs.apply_xfm = True
+        # self.pet_resampled.inputs.reference = self.template
+        # self.pet_resampled.inputs.in_matrix_file = self.unit_transf
+        # self.pet_resampled.inputs.out_file = f"{self.key}_resampled.nii.gz"
+        # self.wf.connect([(self.rescale_func, self.pet_resampled,
         #                   [("out_file", "in_file")])])
+
+        self.pet_resampled = Node(interface=RegTools(),
+                                  name=f"{self.key}_resampled")
+        self.pet_resampled.inputs.chg_res_val = 1.418, 1.418, 1.022
+        self.pet_resampled.inputs.iso_flag = True
+        self.pet_resampled.inputs.inter_val = 'LIN'
+        self.pet_resampled.inputs.out_file = f"{self.key}_resampled.nii.gz"
+        self.wf.connect([(self.rescale_func, self.pet_resampled,
+                          [("out_file", "in_file")])])
+
+        self.ct_resampled = Node(interface=RegTools(), name="ct_resampled")
+        self.ct_resampled.inputs.chg_res_val = 1.172, 1.172, 1.031
+        self.ct_resampled.inputs.iso_flag = True
+        self.ct_resampled.inputs.inter_val = 'LIN'
+        self.ct_resampled.inputs.out_file = "ct_resampled.nii.gz"
+        self.wf.connect([(self.convert_struct, self.ct_resampled,
+                          [("converted_files", "in_file")])])
 
 
 if __name__ == '__main__':
@@ -191,6 +216,11 @@ if __name__ == '__main__':
                         help="Output dir. Default 'data_registered'",
                         type=str,
                         default='data_registered')
+    parser.add_argument("-fr",
+                        "--full-registration",
+                        help="Whether to register data + skull strip",
+                        action="store_true",
+                        default=False)
     parser.add_argument(
         "-k",
         "--key",
@@ -214,7 +244,8 @@ if __name__ == '__main__':
         try:
             patient_id = pet_folder.parent.name
             scaling = df.loc[pet_folder.name, 'intensity_scaling']
-            job = JobProcess(patient_id, pet_folder, scaling, data_out_dir)
+            job = JobProcess(patient_id, pet_folder, scaling, data_out_dir,
+                             args.full_registration)
             job.wf.run()
         except Exception as e:
             print("Error processing:", e)
@@ -227,3 +258,4 @@ if __name__ == '__main__':
     # splitting jobs accross several CPU
     with mp.Pool(32) as p:
         p.map(process_wrapper, pet_folders)
+    # process_wrapper(pet_folders[0])
