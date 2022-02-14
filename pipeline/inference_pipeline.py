@@ -15,25 +15,33 @@ import utils
 class JobProcess:
     """
     Encapsulates pipeline behavior. Primarily, this handles setting up the pipeline.
-
-    Args:
-
-       job (Job) : Job object containing information on data to be processed.
+    Each step is a node attached to the workflow, where output from a previous node
+    can be used as input to a later node. The pipeline is essentially:
+    Dicom -> Preprocess -> inference -> postprocess -> dicom
 
     Attributes:
-
        wf (Workflow) : nipype Workflow describing the pipeline.
-
     """
 
-    def __init__(self, data_id, data_dir, pet_dicom_name, configs, out_dir):
+    def __init__(self, data_id: str, data_dir: Path, pet_dicom_name: str,
+                 configs: UserConfig, out_dir: Path):
+        """ Init method for JobProcess.
+
+        Args:
+            data_id (str): patient anonymous id, should be folder name
+            data_dir (Path): directory containing all patients data to be processed
+            pet_dicom_name (str): input file name to use for inference
+            configs (UserConfig): config file saved after training a model
+            out_dir (Path): path to inferred data.
+        """
+
         self.data_id = data_id
         self.configs = configs
         self.out_dir = out_dir.joinpath(data_id)
         self.data_dir = data_dir
-        # self.training_dir = self.data_dir.parent.joinpath('data_for_training')
         self.template = self.data_dir.parent.joinpath('etc').joinpath(
             "avg_template.nii.gz")
+
         # if not specified by user, get lowdose tag from configs
         if not pet_dicom_name:
             pet_input = configs['input_files']['name'][0]
@@ -42,17 +50,14 @@ class JobProcess:
         self.wf = Workflow(name=self.pet_dicom_name, base_dir=self.out_dir)
 
         # process by step
+        self.load_data()
         self.to_mni_space()
         self.make_inference()
         self.to_patient_space()
         self.to_dicom()
 
-    def to_mni_space(self):
-        """
-        Creates and connects nodes later stages of processing will depend on, .e.g,
-        specifies folders containing CT resp. PET images, and converts DICOM
-        to NIfTI. Also, skullstripping is performed, images are spatially normalized.
-        
+    def load_data(self):
+        """ Load PET and CT data and convert to NIFTI format. 
         """
         self.datasource = Node(interface=DataGrabber(
             infields=['data_id'], outfields=['struct', "func"]),
@@ -79,16 +84,9 @@ class JobProcess:
         self.wf.connect([(self.datasource, self.ct, [("struct", "source_dir")])
                          ])
 
-        # rescaling not necessary - or is it ??
-        # self.rescale_func = Node(interface=fsl.maths.BinaryMaths(),
-        #                          name='rescaled_pet')
-        # self.rescale_func.inputs.operation = 'mul'
-        # self.rescale_func.inputs.operand_value = self.scaling_factor
-        # self.rescale_func.inputs.out_file = "scaled_pet_to_standard.nii.gz"
-
-        # self.wf.connect([(self.convert_func, self.rescale_func,
-        #                   [("converted_files", "in_file")])])
-
+    def to_mni_space(self):
+        """ Register the input data to MNI space + perform skull strip with BET()
+        """
         self.pet_to_ct = Node(interface=fsl.FLIRT(), name='pet_to_ct')
         self.pet_to_ct.inputs.cost_func = "corratio"
         self.pet_to_ct.inputs.cost = "corratio"
@@ -171,6 +169,10 @@ class JobProcess:
                          ])
 
     def make_inference(self):
+        """ Inference node built on Function()
+            Currently runs on the same host as main process using CPU
+            but could be changed to a free host with GPU.
+        """
         self.inferred_pet_to_avg_bet = Node(interface=Function(
             function=utils.infer_from_model,
             input_names=["in_file", "configs"],
@@ -181,7 +183,10 @@ class JobProcess:
                           [("out_file", "in_file")])])
 
     def to_patient_space(self):
-        """ INVERSE skull stripping of lowdose PET image """
+        """ Reverses registration to patient space and 
+            adds contour of skull strip step to regenerate 
+            the full PET image. 
+        """
         # prepare (blur) lowdose pet image
 
         self.blurred_pet_to_avg = Node(interface=fsl.IsotropicSmooth(),
@@ -208,7 +213,7 @@ class JobProcess:
                          (self.inverted_mask_to_avg, self.reserved_skull_strip,
                           [("out_file", "mask_file")])])
 
-        #### MERGE skull strip + rest of pet image from lowdose file
+        # MERGE skull strip + rest of pet image from lowdose file
         self.inferred_pet_to_avg = Node(interface=fsl.BinaryMaths(),
                                         name="inferred_pet_to_avg")
         self.inferred_pet_to_avg.inputs.operation = 'add'
@@ -218,7 +223,7 @@ class JobProcess:
                          (self.reserved_skull_strip, self.inferred_pet_to_avg,
                           [("out_file", "operand_file")])])
 
-        ##### CONCATENATING pet_to_ct + ct_to_avg AFFINE TRANSFORMS
+        # CONCATENATING pet_to_ct + ct_to_avg AFFINE TRANSFORMS
         self.aff_pet_to_avg = Node(interface=fsl.ConvertXFM(),
                                    name="aff_pet_to_avg")
         self.aff_pet_to_avg.inputs.concat_xfm = True
@@ -228,7 +233,7 @@ class JobProcess:
                          (self.ct_to_avg, self.aff_pet_to_avg,
                           [("out_matrix_file", "in_file2")])])
 
-        #### INVERTING PET_TO_AVG AFFINE TRANSFORM
+        # INVERTING PET_TO_AVG AFFINE TRANSFORM
         self.inv_aff_pet_to_avg = Node(interface=fsl.ConvertXFM(),
                                        name="inv_aff_pet_to_avg")
         self.inv_aff_pet_to_avg.inputs.invert_xfm = True
@@ -236,7 +241,7 @@ class JobProcess:
         self.wf.connect([(self.aff_pet_to_avg, self.inv_aff_pet_to_avg,
                           [("out_file", "in_file")])])
 
-        ##### RESAMPLING 256x256x256 MNI space -> original res patient space(400x400x109)
+        # RESAMPLING 256x256x256 MNI space -> original res patient space(400x400x109)
         self.inferred_pet = Node(interface=fsl.FLIRT(), name="inferred_pet")
         self.inferred_pet.inputs.apply_xfm = True
         self.inferred_pet.inputs.out_file = "inferred_pet.nii.gz"
@@ -247,6 +252,8 @@ class JobProcess:
                           [("out_file", "in_file")])])
 
     def to_dicom(self):
+        """ Saving the final NIFTI PET in DICOM format.
+        """
         self.inferred_dicom = Node(interface=Function(
             function=utils.nifty_to_dicom,
             input_names=[
@@ -263,6 +270,13 @@ class JobProcess:
                           [("func", "ref_container")])])
 
     def clean_up(self, keep_nifti=False):
+        """ Deleting all intermediate files.
+            Keeping only denoised DICOM.
+            Keeping input and denoised NIFTI PET as option.
+
+        Args:
+            keep_nifti (bool, optional): Whether to keep a copy of the PET image in NIFTI format. Defaults to False.
+        """
         output_dir = self.out_dir.joinpath(self.pet_dicom_name)
         all_files = [f for f in output_dir.iterdir() if f.is_file()]
         all_directories = [d for d in output_dir.iterdir() if d.is_dir()]
@@ -324,8 +338,12 @@ if __name__ == '__main__':
     inference_dir = data_dir.parent.joinpath(args.output_dir)
     inference_dir.mkdir(parents=True, exist_ok=True)
 
-    ## LOW DOSE TAG (WHICH PET FILE TO USE FOR INFERENCE)
-    def process_wrapper(patient_id):
+    def process_wrapper(patient_id: str):
+        """Wrapper function to be used if multiprocessing.
+
+        Args:
+            patient_id (str): patient anonymous id (folder name)
+        """
         try:
             job = JobProcess(patient_id, data_dir, args.tag, configs,
                              inference_dir)

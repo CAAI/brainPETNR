@@ -1,11 +1,16 @@
 from pydicom import dcmread
 
+
 class DicomParser:
+
     def __init__(self, dcm_file):
         self.dcm_file = dcm_file
         self.info = {}
-    
+
     def get_header_info(self):
+        """ Recursively parsing through dicom header 
+            until all attributes are extrated
+        """
         header = dcmread(self.dcm_file, stop_before_pixels=True)
         for h in header:
             # deal with embedded data
@@ -23,8 +28,7 @@ class DicomParser:
             else:
                 val = self.format_val(h.value)
                 self.info[h.keyword] = val
-                
-    
+
     @staticmethod
     def format_val(x):
         if type(x) == int:

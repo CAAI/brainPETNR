@@ -8,23 +8,29 @@ import numpy as np
 
 
 def main():
+    """ Parses all info contained in PET and CT dicom files (after reconstruction).
+        Derives rescaling value of PET data, 
+        which is usefull in case of dose reduction or scan time reduction.
+        Exports info for all patients to one csv file.
+    """
     parser = argparse.ArgumentParser(
         description=
-        """ Parse all info contained in PET and CT dicom files (after reconstruction).
-                                                 Exports info for all patients to one json file."""
-    )
+        """ Parses all info contained in PET and CT dicom files (after reconstruction).
+            Exports info for all patients to one csv file.""")
     parser.add_argument(
         "-i",
         "--input",
-        help=
-        "Directory containing reconstructed patients data. Will use current working directory if nothing passed",
+        help="Input directory (reconstructed data). Default: cwd.",
         type=str,
         default=os.getcwd())
-    args = parser.parse_args()
 
+    args = parser.parse_args()
     data_dir = Path(args.input)
     project_id = data_dir.parent.name
+
+    # get all patients ids
     patient_folders = [d for d in data_dir.iterdir() if d.is_dir()]
+
     infos = {}
     pet_files = set()
     for patient_folder in tqdm(patient_folders):

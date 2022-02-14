@@ -10,6 +10,14 @@ from rhtorch.utilities.config import UserConfig
 
 # normalizaions
 def ct_soft_norm(data):
+    """ Zeroing all data outside [-50, 50] range and normalizing to [-1, 1] range.
+
+    Args:
+        data (tio.ScalarImage): input CT image
+
+    Returns:
+        tio.ScalarImage: normalized CT image
+    """
     data_trunc = np.maximum(-50, data)
     data_trunc = np.minimum(data_trunc, 50)
     return data_trunc / 50
@@ -23,6 +31,18 @@ def copy_and_preprocess_file(file,
                              normalize_func=None,
                              crop_func=None,
                              copy_base_file=False):
+    """ Converts a nifti file to a pre-processed file in data_for_training folder
+
+    Args:
+        file (Path): input file to be preprocessed.
+        base_filename (str): input file name before preprocessing.
+        out_dir (Path): output directory (data_for_training/patient_id)
+        new_shape (str): indicates data shape, like 256x256x256
+        normalize_func (tio.Transform, optional): Normalization function. Defaults to None.
+        crop_func (tio.Transform, optional): Cropping function. Defaults to None.
+        copy_base_file (bool, optional): Whether to copy the original image in out_dir. Defaults to False.
+    """
+
     if not file.exists():
         return
 
@@ -45,6 +65,9 @@ def copy_and_preprocess_file(file,
 
 
 def main():
+    """ Script used to preprocess data for training instead of doing if on the go while training.
+        Specifically consists of normalization and cropping, as written in the config file.
+    """
     parser = argparse.ArgumentParser(
         description=
         'Prepare nifty files for training given info in config file.')

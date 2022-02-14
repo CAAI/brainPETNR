@@ -52,7 +52,7 @@ class JobProcess:
         """
         Creates and connects nodes later stages of processing will depend on, .e.g,
         specifies folders containing CT resp. PET images, and converts DICOM
-        to NIfTI. Also, skullstripping is performed, images are spatially normalized.
+        to NIfTI.
         
         """
         self.datasource = Node(interface=DataGrabber(
@@ -89,6 +89,8 @@ class JobProcess:
                           [("converted_files", "in_file")])])
 
     def to_mni(self):
+        """ Skull stripping and spatial normalization (registration to MNI space)
+        """
         self.pet_to_ct = Node(interface=fsl.FLIRT(), name=f'{self.key}_to_ct')
         self.pet_to_ct.inputs.cost_func = "corratio"
         self.pet_to_ct.inputs.cost = "corratio"
@@ -172,15 +174,12 @@ class JobProcess:
                          ])
 
     def resample(self):
-
-        # self.pet_resampled = Node(interface=fsl.FLIRT(),
-        #                           name=f"{self.key}_resampled")
-        # self.pet_resampled.inputs.apply_xfm = True
-        # self.pet_resampled.inputs.reference = self.template
-        # self.pet_resampled.inputs.in_matrix_file = self.unit_transf
-        # self.pet_resampled.inputs.out_file = f"{self.key}_resampled.nii.gz"
-        # self.wf.connect([(self.rescale_func, self.pet_resampled,
-        #                   [("out_file", "in_file")])])
+        """ Resampling node in case no registration was performed.
+            Resampling to 256x256x256.
+            WARNINGS: the chg_res_val is specific to the input data.
+                      should be done by getting the pixel size of original data
+                      + the target pixel number.
+        """
 
         self.pet_resampled = Node(interface=RegTools(),
                                   name=f"{self.key}_resampled")
@@ -200,8 +199,12 @@ class JobProcess:
                           [("converted_files", "in_file")])])
 
 
-if __name__ == '__main__':
-
+def main():
+    """ Registration sequence going from the reconstructed DICOM to a nifti file
+        ready for training. The 'full-registration' option is 
+        for performing MNI registration and skull stripping.
+        Otherwise the data is resamped to 256x256x256.
+    """
     # input folder
     parser = argparse.ArgumentParser(
         description=
@@ -259,3 +262,7 @@ if __name__ == '__main__':
     with mp.Pool(32) as p:
         p.map(process_wrapper, pet_folders)
     # process_wrapper(pet_folders[0])
+
+
+if __name__ == '__main__':
+    main()

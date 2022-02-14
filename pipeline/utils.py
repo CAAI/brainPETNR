@@ -1,12 +1,20 @@
-""" 
+"""
 Functions called in fsl.Function() are executed in a stand alone env
 Imports are to be made within each functions.
 """
 
 
 def infer_from_model(in_file, configs):
-    import os
-    import time
+    """ Inference node of the pipeline. Meant to process one patient data at a time.py
+
+    Args:
+        in_file (pathlib.Path): input nifti file for the model
+        configs (UserConfig): config object of the saved model
+
+    Returns:
+        out_file (pathlib.Path): path to inferred nifti file
+    """
+
     import torchio as tio
     import numpy as np
     import torch
@@ -74,6 +82,16 @@ def infer_from_model(in_file, configs):
 
 
 def nifty_to_dicom(in_file, ref_container, out_container, patient_id):
+    """ Node taking care of converting the inferred PET image
+        from NIFTI format to DICOM.
+
+    Args:
+        in_file (pathlib.Path): path to de-noised nifti file.
+        ref_container (pathlib.Path): path to dicom folder containing original PET image
+        out_container (pathlib.Path): path to output dicom folder containing de-noised PET image
+        patient_id (str): patient anonymous id
+    """
+
     import nibabel as nib
     from rhscripts.conversion import to_dcm
 

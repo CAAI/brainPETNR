@@ -10,7 +10,7 @@ import argparse
 from pathlib import Path
 import pandas as pd
 import yaml
-from multiprocessing import Pool
+# from multiprocessing import Pool
 
 
 def edit_params_file(base_file, temp_file, formatted_dur):
@@ -106,10 +106,6 @@ def e7_sequence(input_dir, output_dir, param_file, recon_type, is_test):
     # go back and delete converted data
     os.chdir("..\\..")
     time.sleep(2)
-    # rmtree(data_dir, ignore_errors=True)
-    # print('Deleting:', data_dir)
-    # if not is_test:
-    #     rmtree(data_dir_converted, ignore_errors=True)
     print('Deleting:', data_dir_converted)
 
 
@@ -118,33 +114,22 @@ def main():
         description=
         'Runs the JSRecon12 reconstruction sequence on all folders in a given data directory.'
     )
-    parser.add_argument(
-        "-i",
-        "--input",
-        help=
-        "Directory containing patients data. Will use current working directory if nothing passed",
-        type=str,
-        default=os.getcwd())
-    parser.add_argument(
-        "-o",
-        "--output",
-        help=
-        "Output directory for recon data. Default is 'data_recon' if nothing passed.",
-        type=str,
-        default='data_dicom')
+    parser.add_argument("-i",
+                        "--input",
+                        help="Input directory. Default: cwd.",
+                        type=str,
+                        default=os.getcwd())
+    parser.add_argument("-o",
+                        "--output",
+                        help="Output directory. Default: 'data_recon'.",
+                        type=str,
+                        default='data_dicom')
     parser.add_argument("-c",
                         "--config",
-                        help="Config file for recon",
+                        help="Config file for recon in .yaml format",
                         type=str,
                         default=Path(
                             os.getcwd()).parent.joinpath('recon_config.yaml'))
-    # parser.add_argument(
-    #     "-p",
-    #     "--params",
-    #     help=
-    #     "Path to params file. Detects params file containing project name if none given",
-    #     type=str,
-    #     default='')
     parser.add_argument("-t",
                         "--test",
                         help="Test run for 1 patient",
