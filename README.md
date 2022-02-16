@@ -12,6 +12,6 @@ Code in **segmentation** was used for:
 
 # Model
 
-The code used for training is found at https://github.com/CAAI/rh-torch and the model is in rhtorch/models/autoencoders.py > AttentionUNet() (TODO: NEEDS TO BE PUSHED). 
+The code used for training is found at https://github.com/CAAI/rh-torch/blob/main/rhtorch/models/attention_models_3d.py > AttentionUNet(). 
 
 The original inspiration of the code comes from https://github.com/momo1689/FAN

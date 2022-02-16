@@ -9,7 +9,8 @@ from nipype.interfaces import fsl
 
 def save_dicom(pet_inferred_nifty, registered_patient_folder, ref_pet_dicom,
                output_dicom_container):
-    """
+    """ Reverses registration and saves to DICOM format.
+    
     Args:
         pet_nifty (str or path): nifty file inferred from model
         ref_pet_nifty (str or path): nifty file in original resolution
@@ -19,6 +20,7 @@ def save_dicom(pet_inferred_nifty, registered_patient_folder, ref_pet_dicom,
         sigma_val (float): to blur lowdose pet image
         inv_bet (bool): patch the rest of the head to the BET pet image
     """
+
     sigma = 3.9 / 2.3548
     inferred_patient_folder = pet_inferred_nifty.parent
     patient = inferred_patient_folder.name
@@ -154,11 +156,7 @@ def main():
 
     # paths and variables info
     project_dir = Path(configs['project_dir'])
-    # project_id = project_dir.name
-    # data_dir = Path(configs['data_folder'])
-    # lowdose pet name used for training
     input_filename = configs['input_files']['name'][0]
-    # base name before cropping and registration
     base_filename = input_filename.split('_MNI_BET')[0]
 
     model_name = configs['model_name']
@@ -190,8 +188,6 @@ def main():
         # output dicom folder
         output_dicom_container = inferred_patient_folder.joinpath(
             base_filename + "_INFER")
-
-        # bet = 'BET' in input_filename
 
         if not output_dicom_container.exists():
             # save a dicom folder

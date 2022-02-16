@@ -45,6 +45,13 @@ def infer_data_from_model(model,
 
 
 def main():
+    """ Inference code for a trained model. 
+        Need to pass the config file of the saved model.
+        Also choose between 'test' or 'eval' data set 
+        to choose internal or external validationdata sets.
+        
+        After inference, the data is de-normalized and padded if cropping was used.
+    """
     parser = argparse.ArgumentParser(
         description='Infer new data from input model.')
     parser.add_argument("-c",
