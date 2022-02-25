@@ -1,0 +1,10 @@
+version: '3.9'
+services:
+  app:
+    image: denoiser:latest
+    volumes:
+      - temp_data:/data
+
+volumes:
+  temp_data:
+    driver: local

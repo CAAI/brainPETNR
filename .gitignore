@@ -115,3 +115,5 @@ venv.bak/
 notebooks/
 .vscode
 temp/
+*.ckpt
+*.nii.gz

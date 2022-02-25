@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 import os
-import shutil
-from pathlib import Path
 import argparse
+import shutil
+import yaml
+from pathlib import Path
 from nipype.interfaces import fsl
 from nipype.interfaces.dcm2nii import Dcm2niix
 from nipype.interfaces.utility import Function
 from nipype import Node, Workflow, DataGrabber
-from rhtorch.utilities.config import UserConfig
 import multiprocessing as mp
 import utils
 
@@ -23,31 +23,39 @@ class JobProcess:
        wf (Workflow) : nipype Workflow describing the pipeline.
     """
 
-    def __init__(self, data_id: str, data_dir: Path, pet_dicom_name: str,
-                 configs: UserConfig, out_dir: Path):
+    def __init__(self,
+                 data_id: str,
+                 data_dir: Path,
+                 configs: dict,
+                 pet_name: str = '',
+                 ct_name: str = ''):
         """ Init method for JobProcess.
 
         Args:
             data_id (str): patient anonymous id, should be folder name
             data_dir (Path): directory containing all patients data to be processed
-            pet_dicom_name (str): input file name to use for inference
+            pet_name (str): input file name to use for inference
+            ct_name (str): input file name to use for inference
             configs (UserConfig): config file saved after training a model
             out_dir (Path): path to inferred data.
         """
 
         self.data_id = data_id
         self.configs = configs
-        self.out_dir = out_dir.joinpath(data_id)
+        self.out_dir = data_dir.joinpath(data_id)
         self.data_dir = data_dir
-        self.template = self.data_dir.parent.joinpath('etc').joinpath(
-            "avg_template.nii.gz")
+        self.template = self.data_dir.parent.joinpath('etc',
+                                                      "avg_template.nii.gz")
 
         # if not specified by user, get lowdose tag from configs
-        if not pet_dicom_name:
+        if not pet_name:
             pet_input = configs['input_files']['name'][0]
-            pet_dicom_name = pet_input.split('_MNI_BET')[0]
-        self.pet_dicom_name = pet_dicom_name
-        self.wf = Workflow(name=self.pet_dicom_name, base_dir=self.out_dir)
+            pet_name = pet_input.split('_MNI_BET')[0]
+        self.pet_name = pet_name
+        self.ct_name = ct_name if ct_name else 'CT'
+        workflow_name = pet_name + '_DENOISED'
+        self.output_folder = self.out_dir.joinpath(workflow_name)
+        self.wf = Workflow(name=workflow_name, base_dir=self.out_dir)
 
         # process by step
         self.load_data()
@@ -66,8 +74,8 @@ class JobProcess:
         self.datasource.inputs.base_directory = self.data_dir
         self.datasource.inputs.data_id = self.data_id
         self.datasource.inputs.template_args = dict(
-            struct=[["data_id", 'CT']],
-            func=[["data_id", self.pet_dicom_name]])
+            struct=[["data_id", self.ct_name]],
+            func=[["data_id", self.pet_name]])
         self.datasource.inputs.sort_filelist = True
 
         self.pet = Node(interface=Dcm2niix(), name='pet')
@@ -263,7 +271,7 @@ class JobProcess:
                                    name="inferred_dicom")
         self.inferred_dicom.inputs.patient_id = self.data_id
         self.inferred_dicom.inputs.out_container = self.out_dir.joinpath(
-            self.pet_dicom_name, "denoised_dicom")
+            self.pet_name, "denoised_dicom")
         self.wf.connect([(self.inferred_pet, self.inferred_dicom,
                           [("out_file", "in_file")]),
                          (self.datasource, self.inferred_dicom,
@@ -277,9 +285,10 @@ class JobProcess:
         Args:
             keep_nifti (bool, optional): Whether to keep a copy of the PET image in NIFTI format. Defaults to False.
         """
-        output_dir = self.out_dir.joinpath(self.pet_dicom_name)
-        all_files = [f for f in output_dir.iterdir() if f.is_file()]
-        all_directories = [d for d in output_dir.iterdir() if d.is_dir()]
+        all_files = [f for f in self.output_folder.iterdir() if f.is_file()]
+        all_directories = [
+            d for d in self.output_folder.iterdir() if d.is_dir()
+        ]
         # first delete random files
         for f in all_files:
             f.unlink()
@@ -291,8 +300,8 @@ class JobProcess:
             }
             # move the kept nifties 1 level up (out of their folder)
             for k, v in keep_files.items():
-                org_file = output_dir.joinpath(k, k + '.nii.gz')
-                dst_file = output_dir.joinpath(v + '.nii.gz')
+                org_file = self.output_folder.joinpath(k, k + '.nii.gz')
+                dst_file = self.output_folder.joinpath(v + '.nii.gz')
                 if org_file.exists():
                     os.rename(org_file, dst_file)
         # finally delete all folders except dicom container
@@ -301,8 +310,7 @@ class JobProcess:
                 shutil.rmtree(d)
 
 
-if __name__ == '__main__':
-
+def main():
     # input folder
     parser = argparse.ArgumentParser(
         description='Inference pipeline dicom to dicom.')
@@ -334,9 +342,9 @@ if __name__ == '__main__':
                         default=False)
     args = parser.parse_args()
     data_dir = Path(args.input_dir)
-    configs = UserConfig(args, mode='infer').hparams
-    inference_dir = data_dir.parent.joinpath(args.output_dir)
-    inference_dir.mkdir(parents=True, exist_ok=True)
+    config_file = args.config
+    with open(config_file) as cf:
+        configs = yaml.safe_load(cf)
 
     def process_wrapper(patient_id: str):
         """Wrapper function to be used if multiprocessing.
@@ -345,8 +353,7 @@ if __name__ == '__main__':
             patient_id (str): patient anonymous id (folder name)
         """
         try:
-            job = JobProcess(patient_id, data_dir, args.tag, configs,
-                             inference_dir)
+            job = JobProcess(patient_id, data_dir, configs, args.tag, 'CT')
             job.wf.run()
             job.clean_up(keep_nifti=True)
         except Exception as e:
@@ -361,3 +368,7 @@ if __name__ == '__main__':
     else:
         for patient in patients:
             process_wrapper(patient)
+
+
+if __name__ == '__main__':
+    main()
