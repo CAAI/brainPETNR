@@ -117,3 +117,4 @@ notebooks/
 temp/
 *.ckpt
 *.nii.gz
+*.yaml
