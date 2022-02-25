@@ -247,7 +247,7 @@ def main():
 
     else:
         for patient in patient_folders:
-            process_wrapper(patient)
+            process_wrapper(patient, config, df, recon_data_dir)
 
     print("RECONSTRUCTION DONE")
     print("JOB COMPLETE!\n")
