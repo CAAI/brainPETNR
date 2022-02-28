@@ -15,12 +15,10 @@ from skimage.metrics import structural_similarity as ssmi
 from scipy.ndimage import gaussian_filter
 from utils import (cerebellum_normalization2, _lia_img_axial_to_vox,
                    putamen_caudate_ratio, putamen_sbr, unwrap_dfs)
-from postprocessing.plotting_utils import (pixelvalue_jointplot_log,
-                                           brain_slices_grid_pe2i,
-                                           bland_altman_plot, lmplot_compare,
-                                           box_roi_percent_diff_images,
-                                           boxplot_from_dataframe,
-                                           ssmi_psnr_nrmse_plot)
+from plotting_utils import (pixelvalue_jointplot_log, brain_slices_grid_pe2i,
+                            bland_altman_plot, lmplot_compare,
+                            box_roi_percent_diff_images,
+                            boxplot_from_dataframe, ssmi_psnr_nrmse_plot)
 
 
 def main():

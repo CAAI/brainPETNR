@@ -67,7 +67,7 @@ def main():
     parser.add_argument("--gpu",
                         help="Use GPU. Will only use CPU if false.",
                         action="store_true",
-                        default=True)
+                        default=False)
 
     args = parser.parse_args()
     infer_mode = args.infer_mode

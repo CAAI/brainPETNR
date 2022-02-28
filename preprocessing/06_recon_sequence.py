@@ -101,7 +101,7 @@ def e7_sequence(input_dir, output_dir, param_file, recon_type):
 
 def process_wrapper(patient_folder, configs, df, out_dir):
 
-    mode = configs['activity']
+    mode = configs['mode']
     acq_time = configs['acq_time']
     delay_time = configs['start_delay_for_recon']
     percent = configs['percent']
@@ -130,7 +130,7 @@ def process_wrapper(patient_folder, configs, df, out_dir):
 
     data_folder = patient_folder.joinpath('PET')
     output_folder = f"PET_{blurring}mm"
-    if mode == 'dose reduction':
+    if mode == 'dose_reduction':
         data_folder = patient_folder.joinpath(f"PET_LD{percent}pct")
         output_folder = f"PET_{blurring}mm_LD{percent}pct"
 
@@ -138,7 +138,7 @@ def process_wrapper(patient_folder, configs, df, out_dir):
     # pib 540:120 (9min:2min)    570:60  (1min)
     # pib 600:300 (10min:5min)
     # pe2i 270:60 (4min30sec:1min)     285:30 (0.5 min)
-    elif mode == 'time reduction':
+    elif mode == 'time_reduction':
         if delay_for_recon != 'all':
             delay_time = int(delay_for_recon.split(':')[0]) + delay_time
         delay_for_recon = f'{delay_time}:{acq_time}'
@@ -237,6 +237,9 @@ def main():
 
     # parallelize patient reconstruction
     if args.multiprocess:
+        print("""\n\n !!! WARNING! Use multiprocessing at own risk. 
+              This is still in experimental phase !!!\n\n""")
+        time.sleep(2)
         with mp.Pool(args.multiprocess) as p:
             # need to use repeat + zip as the patient_folders is a list but the
             # other args are unique values.
