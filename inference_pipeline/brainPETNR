@@ -1,0 +1,38 @@
+#!/usr/bin/env python
+
+import os
+from pathlib import Path
+from inference_pipeline.utils import infer_from_model, maybe_download_parameters, get_config, get_ckpt_path
+import yaml
+
+def main():
+
+    import argparse
+    parser = argparse.ArgumentParser(description="Run brainPETNR on a single PET file")
+    parser.add_argument("-pet", type=str, required=True, help="PET input file")
+    parser.add_argument("-ct", type=str, required=False, help="CT input file")
+    parser.add_argument('-model', type=str, required=True, help='Select the denoising model [PiB or PE2I]')
+    args = parser.parse_args()
+
+
+    if args.ct:
+        raise NotImplemented('')
+        # Perform preprocessing
+    else:
+        PET = args.pet
+    
+    assert args.model in ('PE2I', 'PiB')
+
+    # Load config
+    config_file = get_config(args.model)
+    with open(config_file) as cf:
+        configs = yaml.safe_load(cf)
+    # Replace with actual model
+    configs['best_model'] = get_ckpt_path(args.model)
+
+    denoised = infer_from_model(PET, configs)
+
+
+    
+if __name__ == "__main__":
+    main()

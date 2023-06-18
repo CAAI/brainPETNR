@@ -1,8 +1,12 @@
+import os, sys
+from urllib.request import urlopen
+
 """
 Functions called in fsl.Function() are executed in a stand alone env
 Imports are to be made within each functions.
 """
 
+folder_with_parameter_files = os.path.join(os.path.expanduser('~'), 'brainPETNR_params')
 
 def infer_from_model(in_file, configs):
     """ Inference node of the pipeline. Meant to process one patient data at a time.py
@@ -103,3 +107,50 @@ def nifty_to_dicom(in_file, ref_container, out_container, patient_id):
            patient_id=patient_id,
            forceRescaleSlope=True,
            from_type='nifty')
+
+def maybe_download_parameters(force_overwrite=False):
+    """
+    Downloads the parameters if it is not present yet.
+    :param force_overwrite: if True the old parameter file will be deleted (if present) prior to download
+    :return:
+    """
+
+    if not os.path.isdir(folder_with_parameter_files):
+        maybe_mkdir_p(folder_with_parameter_files)
+
+    files = {
+        'avg_template.nii.gz': 'avg_template.nii.gz',
+        'PE2I.ckpt': 'Checkpoint_min_val_loss-epoch%3D141.ckpt',
+        'PE2I.yaml': 'config_PE2I_5pct.yaml',
+        'PiB.ckpt': 'Checkpoint_min_val_loss-epoch%3D203.ckpt',
+        'PiB.yaml': 'config_PiB_5min.yaml'
+    }
+
+
+    for out_file, online_file in files.items():
+        out_filename = os.path.join(folder_with_parameter_files, out_file)
+
+        if force_overwrite and os.path.isfile(out_filename):
+            os.remove(out_filename)
+
+        if not os.path.isfile(out_filename):
+            url = f"https://zenodo.org/record/8052462/files/{online_file}?download=1"
+            print("Downloading", url, "...")
+            data = urlopen(url).read()
+            with open(out_filename, 'wb') as f:
+                f.write(data)
+
+def get_template_fname():
+    return os.path.join(folder_with_parameter_files, 'avg_template.nii.gz')
+
+def get_config(model):
+    return os.path.join(folder_with_parameter_files, f'{model}.yaml')
+
+def get_ckpt_path(model):
+    return os.path.join(folder_with_parameter_files, f'{model}.ckpt')
+
+def maybe_mkdir_p(directory):
+    splits = directory.split("/")[1:]
+    for i in range(0, len(splits)):
+        if not os.path.isdir(os.path.join("/", *splits[:i+1])):
+            os.mkdir(os.path.join("/", *splits[:i+1]))
