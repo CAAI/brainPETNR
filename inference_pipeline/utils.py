@@ -1,5 +1,6 @@
 import os, sys
 from urllib.request import urlopen
+from pathlib import Path
 
 """
 Functions called in fsl.Function() are executed in a stand alone env
@@ -8,7 +9,7 @@ Imports are to be made within each functions.
 
 folder_with_parameter_files = os.path.join(os.path.expanduser('~'), 'brainPETNR_params')
 
-def infer_from_model(in_file, configs):
+def infer_from_model(in_file, configs, out_file=None):
     """ Inference node of the pipeline. Meant to process one patient data at a time.py
 
     Args:
@@ -45,11 +46,12 @@ def infer_from_model(in_file, configs):
     module_name = recursive_find_python_class(configs['module'])
     model = module_name(configs, data_shape_in)
     ckpt_path = pathlib.Path(configs['best_model'])
+    print(ckpt_path)
     ckpt = torch.load(ckpt_path)
     # epoch_suffix = f"_e={ckpt['epoch']}"
     model.load_state_dict(ckpt['state_dict'])
     # inference on CPU - or on GPU?
-    model.eval()
+    model.eval().cuda(device=0)
 
     ##################### prepare loader and grid sampler ##########
     patch_size = configs['patch_size']
@@ -63,7 +65,7 @@ def infer_from_model(in_file, configs):
         for patches_batch in patch_loader:
             patch_x, _ = model.prepare_batch(patches_batch)
             locations = patches_batch[tio.LOCATION]
-            patch_y = model(patch_x)
+            patch_y = model(patch_x.cuda(0)).cpu()
             aggregator.add_batch(patch_y, locations)
     full_volume = aggregator.get_output_tensor()
 
@@ -79,8 +81,13 @@ def infer_from_model(in_file, configs):
         final_image = pad(final_image)
 
     # save nifty with torchio - temporarily in input folder
-    out_dir = in_file.parent
-    out_file = out_dir.joinpath(f"inferred_{out_dir.name}.nii.gz")
+    if out_file is None:
+        out_dir = in_file.parent
+        out_file = out_dir.joinpath(f"inferred_{out_dir.name}.nii.gz")
+    else:
+        out_dir = Path(out_file).parent
+        out_dir.mkdir(exist_ok=True, parents=True)
+
     final_image.save(out_file)
     return out_file
 
@@ -147,7 +154,7 @@ def get_config(model):
     return os.path.join(folder_with_parameter_files, f'{model}.yaml')
 
 def get_ckpt_path(model):
-    return os.path.join(folder_with_parameter_files, f'{model}.ckpt')
+    return os.path.join(folder_with_parameter_files, f'{model}.pt')
 
 def maybe_mkdir_p(directory):
     splits = directory.split("/")[1:]

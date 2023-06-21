@@ -71,7 +71,7 @@ networkx==2.5.1
 nibabel==3.2.1
 nipype==1.6.1
 notebook==6.4.0
-numpy==1.21.1
+numpy
 oauthlib==3.1.1
 opencv-python==4.5.3.56
 openpyxl==3.0.9
@@ -113,7 +113,7 @@ requests==2.25.1
 requests-oauthlib==1.3.0
 requests-unixsocket==0.2.0
 -e git+https://github.com/CAAI/rh-scripts.git@f316876afdc434107d8f442d93088aa07da6cff0#egg=rhscripts
--e git+https://github.com/CAAI/rh-torch.git@5007d29b04b0196031337ffc7c4c49aeed56b1cb#egg=rhtorch
+git+https://github.com/CAAI/rh-torch@5fa8de530e21345d987bb3988890c65daae052c0
 rsa==4.7.2
 ruamel.yaml==0.17.10
 ruamel.yaml.clib==0.2.4
@@ -151,7 +151,6 @@ traitlets==5.0.5
 traits==6.2.0
 typing-extensions==3.10.0.0
 urllib3==1.26.6
-wandb==0.12.9
 wcwidth==0.2.5
 webencodings==0.5.1
 websocket-client==1.1.0

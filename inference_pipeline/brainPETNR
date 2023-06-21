@@ -3,6 +3,7 @@
 import os
 from pathlib import Path
 from inference_pipeline.utils import infer_from_model, maybe_download_parameters, get_config, get_ckpt_path
+from inference_pipeline.preprocess import preprocess, to_patient_space
 import yaml
 
 def main():
@@ -11,17 +12,14 @@ def main():
     parser = argparse.ArgumentParser(description="Run brainPETNR on a single PET file")
     parser.add_argument("-pet", type=str, required=True, help="PET input file")
     parser.add_argument("-ct", type=str, required=False, help="CT input file")
+    parser.add_argument("-out", type=str, required=True, help="Output denoised PET file")
     parser.add_argument('-model', type=str, required=True, help='Select the denoising model [PiB or PE2I]')
     args = parser.parse_args()
-
-
-    if args.ct:
-        raise NotImplemented('')
-        # Perform preprocessing
-    else:
-        PET = args.pet
     
     assert args.model in ('PE2I', 'PiB')
+
+    # Download model weights
+    maybe_download_parameters()
 
     # Load config
     config_file = get_config(args.model)
@@ -30,7 +28,20 @@ def main():
     # Replace with actual model
     configs['best_model'] = get_ckpt_path(args.model)
 
-    denoised = infer_from_model(PET, configs)
+    if args.ct is None:
+        denoised = infer_from_model(args.pet, configs, out_file=args.out)
+    else:
+        PET, BET_mask = preprocess(args.pet, args.ct)
+        denoised_mni_space = os.path.join(os.path.dirname(args.pet), 'denoised_MNIspace.nii.gz')
+        infer_from_model(PET, configs, out_file=denoised_mni_space)
+        to_patient_space(
+            denoised_mni_space, 
+            args.pet.replace('.nii.gz', '_to_avg.nii.gz'), 
+            BET_mask, 
+            args.pet, 
+            args.out)
+    
+
 
 
     
