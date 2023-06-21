@@ -14,6 +14,7 @@ def main():
     parser.add_argument("-ct", type=str, required=False, help="CT input file")
     parser.add_argument("-out", type=str, required=True, help="Output denoised PET file")
     parser.add_argument('-model', type=str, required=True, help='Select the denoising model [PiB or PE2I]')
+    parser.add_argument('--use_hdbet', action='store_true')
     args = parser.parse_args()
     
     assert args.model in ('PE2I', 'PiB')
@@ -29,9 +30,9 @@ def main():
     configs['best_model'] = get_ckpt_path(args.model)
 
     if args.ct is None:
-        denoised = infer_from_model(args.pet, configs, out_file=args.out)
+        infer_from_model(args.pet, configs, out_file=args.out)
     else:
-        PET, BET_mask = preprocess(args.pet, args.ct)
+        PET, BET_mask = preprocess(args.pet, args.ct, use_hdctbet=args.use_hdbet)
         denoised_mni_space = os.path.join(os.path.dirname(args.pet), 'denoised_MNIspace.nii.gz')
         infer_from_model(PET, configs, out_file=denoised_mni_space)
         to_patient_space(
