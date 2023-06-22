@@ -17,17 +17,23 @@ def main():
     parser.add_argument('--use_hdbet', action='store_true')
     args = parser.parse_args()
     
-    assert args.model in ('PE2I', 'PiB')
+    assert args.model in ('PE2I', 'PiB', 'PiB_5min')
+    if args.model == 'PE2I':
+        model = 'PE2I_5pct_30sec'
+        config_name = 'PE2I'
+    elif args.model.startswith('PiB'):
+        model = 'PiB_5pct_1min' if args.model == 'PiB' else 'PiB_25pct_5min'
+        config_name = 'PiB'
 
     # Download model weights
     maybe_download_parameters()
 
     # Load config
-    config_file = get_config(args.model)
+    config_file = get_config(config_name)
     with open(config_file) as cf:
         configs = yaml.safe_load(cf)
     # Replace with actual model
-    configs['best_model'] = get_ckpt_path(args.model)
+    configs['best_model'] = get_ckpt_path(model)
 
     if args.ct is None:
         infer_from_model(args.pet, configs, out_file=args.out)
@@ -41,10 +47,6 @@ def main():
             BET_mask, 
             args.pet, 
             args.out)
-    
-
-
-
     
 if __name__ == "__main__":
     main()

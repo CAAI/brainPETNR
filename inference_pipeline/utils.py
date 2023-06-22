@@ -127,10 +127,11 @@ def maybe_download_parameters(force_overwrite=False):
 
     files = {
         'avg_template.nii.gz': 'avg_template.nii.gz',
-        'PE2I.pt': 'PE2I.pt',
+        'PE2I_5pct_30sec.pt': 'PE2I.pt',
         'PE2I.yaml': 'config_PE2I_5pct.yaml',
-        'PiB.pt': 'PiB.pt',
-        'PiB.yaml': 'config_PiB_5min.yaml'
+        'PiB_25pct_5min.pt': 'PiB.pt',
+        'PiB.yaml': 'config_PiB_5min.yaml',
+        'PiB_5pct_1min.pt': 'PiB_5pct_1min.pt',
     }
 
 
@@ -141,7 +142,7 @@ def maybe_download_parameters(force_overwrite=False):
             os.remove(out_filename)
 
         if not os.path.isfile(out_filename):
-            url = f"https://zenodo.org/record/8063588/files/{online_file}?download=1"
+            url = f"https://zenodo.org/record/8068687/files/{online_file}?download=1"
             print("Downloading", url, "...")
             data = urlopen(url).read()
             with open(out_filename, 'wb') as f:
